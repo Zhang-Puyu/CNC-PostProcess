@@ -1,0 +1,29 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="ToolpathProcesser.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="MainWindow.cpp" />
+    <ClCompile Include="ViewWidget.cpp" />
+    <ClCompile Include="MessageWidget.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="resource.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="PostProcess.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="机床.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtMoc Include="ToolpathProcesser.h" />
+    <QtMoc Include="MainWindow.h" />
+    <QtMoc Include="ViewWidget.h" />
+    <QtMoc Include="MessageWidget.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <QtUic Include="MainWindow.ui" />
+    <QtUic Include="MessageWidget.ui" />
+  </ItemGroup>
+</Project>
