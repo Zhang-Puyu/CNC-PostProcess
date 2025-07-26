@@ -5,6 +5,8 @@
 
 #include "qlabel.h"
 #include "qthread.h"
+#include "qfile.h"
+#include "qsettings.h"
 
 #include "ToolpathProcesser.h"
 #include "MessageWidget.h"
@@ -25,8 +27,8 @@ public:
 	void loadFile(const QString& filePath);
 	void saveFile();
 
-	void openConfig();
-	void saveConfig();
+	void readSetting();
+	void writeSetting();
 
 protected:
 	void dragEnterEvent(QDragEnterEvent* ev) override;
@@ -44,13 +46,17 @@ private:
 	/// @brief 刀轨文件过大
 	bool m_bLargeFile = true;
 
+	QSettings* m_setting;
+
 	/// @brief 刀轨文件解析完成
-	void onParsed();
+	void parsedHandler();
 	/// @brief 后置处理完成
 	/// @param mpfCode 后置后的NC程序代码
-	void onProcessed(const QString& mpfCode);
+	void processedHandler(const QString& mpfCode);
 
 signals:
-	void doParseSignal();
-	void doProcessSignal();
+	/// @brief 刀轨文件解析开始信号
+	void parseSignal();
+	/// @brief 刀轨后置处理开始信号
+	void processSignal();
 };

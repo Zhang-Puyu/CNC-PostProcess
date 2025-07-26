@@ -52,9 +52,13 @@ public:
 	ToolpathProcesser(QObject* parent = nullptr);
 	~ToolpathProcesser();
 
+	/// @brief 解析主程序
 	void parseMainProgam();
+	/// @brief 解析子程序
 	void parseSubProgam(QTextStream& in, Toolpath& toolpath);
+	/// @brief 后置主程序
 	void processMainProgram();
+	/// @brief 后置子程序
 	void processSubProgram(const Toolpath& toolpath);
 
 	void setClsFile(const QString& filePath) { m_clsFile = filePath; }
@@ -126,6 +130,8 @@ signals:
 	/// @brief 刀轨后置处理完成
 	void processed(const QString& mpfCode);
 
+	/// @brief 后置进度信号
+	/// @param value 后置进度的值
 	void progessValueChanged(const int& value);
 
 	void findSecondToolpathInClsFile();

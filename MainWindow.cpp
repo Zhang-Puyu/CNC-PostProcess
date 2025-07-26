@@ -23,17 +23,21 @@ MainWindow::MainWindow(QWidget* parent)
 	connect(ui->buttonOpenFile, &QPushButton::clicked, this, &MainWindow::openFile);
 	connect(ui->buttonSaveFile, &QPushButton::clicked, this, &MainWindow::saveFile);
 
+	m_setting = new QSettings("./config.ini", QSettings::IniFormat);
+
 	m_processer = new ToolpathProcesser();
+
+	// 移至子线程
+	m_thread = new QThread();
+	m_processer->moveToThread(m_thread);
+	m_thread->start();
 
 	auto valueChanged = qOverload<int>(&QSpinBox::valueChanged);
 	connect(ui->spinSpindleSpeed, valueChanged, m_processer, &ToolpathProcesser::setSpindleSpeed);
 	connect(ui->spinRapidFeed,    valueChanged, m_processer, &ToolpathProcesser::setRapidFeed);
-	m_processer->setSpindleSpeed(ui->spinSpindleSpeed->value());
-	m_processer->setRapidFeed(ui->spinRapidFeed->value());
+
 	connect(ui->spinPrecisionCoordinate, valueChanged, m_processer, &ToolpathProcesser::setPrecisionCoordinate);
 	connect(ui->spinPrecisionFeedrate,   valueChanged, m_processer, &ToolpathProcesser::setPrecisionFeedrate);
-	m_processer->setPrecisionCoordinate(ui->spinPrecisionCoordinate->value());
-	m_processer->setPrecisionFeedrate(ui->spinPrecisionFeedrate->value());
 
 	connect(ui->checkLiquidCool, &QCheckBox::stateChanged, m_processer, &ToolpathProcesser::setLiquidtCool);
 	connect(ui->checkLiquidCool, &QCheckBox::stateChanged, m_processer, &ToolpathProcesser::setGasCool);
@@ -41,20 +45,16 @@ MainWindow::MainWindow(QWidget* parent)
 	connect(ui->checkSmooth,	 &QCheckBox::stateChanged, m_processer, &ToolpathProcesser::setSmooth);
 	connect(ui->checkComment,	 &QCheckBox::stateChanged, m_processer, &ToolpathProcesser::setComment);
 
-	// 移至子线程
-	m_thread = new QThread();
-	m_processer->moveToThread(m_thread);
-
-	connect(this, &MainWindow::doParseSignal,   m_processer, &ToolpathProcesser::parseMainProgam);
-	connect(this, &MainWindow::doProcessSignal, m_processer, &ToolpathProcesser::processMainProgram);
-	connect(m_processer, &ToolpathProcesser::parsed, this, &MainWindow::onParsed);
-	connect(m_processer, &ToolpathProcesser::processed, this, &MainWindow::onProcessed);
+	connect(this, &MainWindow::parseSignal,   m_processer, &ToolpathProcesser::parseMainProgam);
+	connect(this, &MainWindow::processSignal, m_processer, &ToolpathProcesser::processMainProgram);
+	connect(m_processer, &ToolpathProcesser::parsed, this, &MainWindow::parsedHandler);
+	connect(m_processer, &ToolpathProcesser::processed, this, &MainWindow::processedHandler);
 
 	connect(ui->buttonStartProcess, &QPushButton::clicked, [=]() {
 		ui->progressBar->setMaximum(m_processer->getPointsCount());
 		ui->progressBar->setValue(0);
 		ui->textMpfCode->clear();
-		emit doProcessSignal();
+		emit processSignal();
 		});
 
 	// 刀位点三维可视化
@@ -87,45 +87,34 @@ MainWindow::MainWindow(QWidget* parent)
 	// 进度条
 	connect(m_processer, &ToolpathProcesser::progessValueChanged, ui->progressBar, &QProgressBar::setValue);
 
-	openConfig();
+	readSetting();
 }
 
 MainWindow::~MainWindow()
 {
-	saveConfig();
+	writeSetting();
 	delete ui;
 }
 
-void MainWindow::openConfig()
+void MainWindow::readSetting()
 {
-	QSettings setting("./config.ini", QSettings::IniFormat);
-	ui->spinSpindleSpeed->setValue(setting.value("SpindleSpeed", 3000).toInt());
-	m_processer->setSpindleSpeed(ui->spinSpindleSpeed->value());
-
-	ui->spinRapidFeed->setValue(setting.value("RapidFeed", 3000).toInt());
-	m_processer->setRapidFeed(ui->spinRapidFeed->value());
-
-	ui->checkLiquidCool->setChecked(setting.value("LiquidCool", true).toBool());
-	m_processer->setLiquidtCool(ui->checkLiquidCool->isChecked());
-	ui->checkGasCool->setChecked(setting.value("GasCool", true).toBool());
-	m_processer->setGasCool(ui->checkGasCool->isChecked());
-	ui->checkSmooth->setChecked(setting.value("Smooth", true).toBool());
-	m_processer->setSmooth(ui->checkSmooth->isChecked());
-	ui->checkGrooveTurn->setChecked(setting.value("GrooveTurn", true).toBool());
-	m_processer->setGrooveTurn(ui->checkGrooveTurn->isChecked());
-	ui->checkComment->setChecked(setting.value("Comment", true).toBool());
-	m_processer->setComment(ui->checkComment->isChecked());
+	ui->spinSpindleSpeed->setValue(m_setting->value("SpindleSpeed", 3000).toInt());
+	ui->spinRapidFeed->setValue(m_setting->value("RapidFeed", 3000).toInt());
+	ui->checkLiquidCool->setChecked(m_setting->value("LiquidCool", true).toBool());
+	ui->checkGasCool->setChecked(m_setting->value("GasCool", true).toBool());
+	ui->checkSmooth->setChecked(m_setting->value("Smooth", true).toBool());
+	ui->checkGrooveTurn->setChecked(m_setting->value("GrooveTurn", true).toBool());
+	ui->checkComment->setChecked(m_setting->value("Comment", true).toBool());
 }
-void MainWindow::saveConfig()
+void MainWindow::writeSetting()
 {
-	QSettings setting("./config.ini", QSettings::IniFormat);
-	setting.setValue("SpindleSpeed", ui->spinSpindleSpeed->value());
-	setting.setValue("RapidFeed",	 ui->spinRapidFeed->value());
-	setting.setValue("LiquidCool",   ui->checkLiquidCool->isChecked());
-	setting.setValue("GasCool",		 ui->checkGasCool->isChecked());
-	setting.setValue("Smooth",		 ui->checkSmooth->isChecked());
-	setting.setValue("GrooveTurn",   ui->checkGrooveTurn->isChecked());
-	setting.setValue("Comment",		 ui->checkComment->isChecked());
+	m_setting->setValue("SpindleSpeed", ui->spinSpindleSpeed->value());
+	m_setting->setValue("RapidFeed",	 ui->spinRapidFeed->value());
+	m_setting->setValue("LiquidCool",   ui->checkLiquidCool->isChecked());
+	m_setting->setValue("GasCool",		 ui->checkGasCool->isChecked());
+	m_setting->setValue("Smooth",		 ui->checkSmooth->isChecked());
+	m_setting->setValue("GrooveTurn",   ui->checkGrooveTurn->isChecked());
+	m_setting->setValue("Comment",		 ui->checkComment->isChecked());
 }
 
 void MainWindow::dragEnterEvent(QDragEnterEvent* ev)
@@ -150,7 +139,7 @@ void MainWindow::dropEvent(QDropEvent* ev)
 	}
 }
 
-void MainWindow::onParsed()
+void MainWindow::parsedHandler()
 {
 	ui->visualButton->setEnabled(true);
 	ui->buttonStartProcess->setEnabled(true);
@@ -158,7 +147,7 @@ void MainWindow::onParsed()
 	ui->progressBar->setValue(ui->progressBar->maximum());
 }
 
-void MainWindow::onProcessed(const QString& mpfCode)
+void MainWindow::processedHandler(const QString& mpfCode)
 {
 	ui->buttonSaveFile->setEnabled(true);
 
@@ -168,7 +157,7 @@ void MainWindow::onProcessed(const QString& mpfCode)
 			msg += toolpath.name + "   |   " + toolpath.tool.name + "\n";
 	if (!m_bLargeFile)
 	{
-		ui->textClsCode->setText(mpfCode);
+		ui->textMpfCode->setText(mpfCode);
 		QMessageBox::information(this, tr("后置完成"), msg, QMessageBox::Ok);
 	}	
 	else
@@ -181,17 +170,16 @@ void MainWindow::onProcessed(const QString& mpfCode)
 
 void MainWindow::openFile()
 {
-	QSettings setting("./config.ini", QSettings::IniFormat);
-	QString path = setting.value("path").toString();
+	QString path = m_setting->value("path").toString();
 	QString filePath = QFileDialog::getOpenFileName(
 		this, tr("打开刀轨文件"), path, "CLS file (*.cls)");
 	if (!filePath.isEmpty()) 
 		loadFile(filePath);
 }
+
 void MainWindow::loadFile(const QString& filePath)
 {
-	QSettings setting("./config.ini", QSettings::IniFormat);
-	QString path = setting.value("path").toString();
+	QString path = m_setting->value("path").toString();
 
 	ui->lineOpenFile->setText(filePath);
 
@@ -241,10 +229,10 @@ void MainWindow::loadFile(const QString& filePath)
 
 	m_clsFile = filePath;
 	path = filePath.left(filePath.lastIndexOf('/'));
-	setting.setValue("path", path);
+	m_setting->setValue("path", path);
 
 	m_processer->setClsFile(m_clsFile);
-	emit doParseSignal();
+	emit parseSignal();
 };
 
 void MainWindow::saveFile()

@@ -204,7 +204,7 @@ void ToolpathProcesser::processSubProgram(const Toolpath& toolpath)
 	if (m_bComment) m_mpfCode += "\n\n; go to safe height";
 	m_mpfCode += "\nN" + QString::number(++n) + " G01"
 		+ " Z" + coor2str(it->z > 200 ? it->z : 200)
-		+ " F" + feed2str(it->f);
+		+ " F" + feed2str(m_rapidFeed);
 
 	// 水平面移动
 	m_mpfCode += "\nN" + QString::number(++n)
@@ -251,11 +251,12 @@ void ToolpathProcesser::processSubProgram(const Toolpath& toolpath)
 		}
 	}
 
-	// last line
+	// 抬刀
 	if (m_bComment)
 		m_mpfCode += "\n\n; go to safe height";
 	m_mpfCode += "\nN" + QString::number(++n) +
-		" Z" + coor2str(toolpath.points.last().z > 200 ? toolpath.points.last().z : 200);
+		" Z" + coor2str(toolpath.points.last().z > 200 ? toolpath.points.last().z : 200) + 
+		" F" + feed2str(m_rapidFeed);
 
 	// 程序结束
 	m_mpfCode += "\n\nN" + QString::number(++n);
@@ -263,7 +264,7 @@ void ToolpathProcesser::processSubProgram(const Toolpath& toolpath)
 		m_mpfCode += " M9";    // 冷却液关
 	if (m_bGrooveTurn)
 		m_mpfCode += " M22";   // 排屑槽关
-	m_mpfCode += " M30\n";	    // 程序结束
+	m_mpfCode += " M30\n";	   // 程序结束
 
 	if (m_bComment)
 		m_mpfCode += "\n; End of Program\n\n";
